@@ -3,8 +3,8 @@
     /* Language & Environment */
     "target": "ES2021",
     "lib": ["ES2021", "DOM", "DOM.Iterable"],
-    "module": "CommonJS",
-    "moduleResolution": "node",
+    "module": "esnext",
+    "moduleResolution": "bundler",
 
     /* Paths */
     "rootDir": "./src",
@@ -16,7 +16,6 @@
 
     /* Strict Type Checking */
     "strict": true,
-    "ignoreDeprecations": "6.0",
     "strictNullChecks": true,
     "strictFunctionTypes": true,
     "strictBindCallApply": true,
