@@ -64,6 +64,23 @@ export interface IHistory {
     loadLocal(): void 
 }
 ```
+## Setup & Installation
+- Clone the Repository
+```bash
+git clone https://github.com/your-username/ts-calculator.git
+cd ts-calculator
+```
+- Install Dependencies
+```bash
+npm install
+```
+- Build the Project
+```bash
+npm run build
+```
+- Run the Project
+After building: Open index.html in your browser
+
 ## Folder Structure
 ```
 ts-calculator/
