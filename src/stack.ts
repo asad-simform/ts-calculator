@@ -1,312 +1,290 @@
-import { IStack, strOrNum, scientificArr, priorityType, scientificOp } from '../src/types'
+import {
+  IStack,
+  scientificOp,
+  strOrNum,
+  scientificArr
+} from './types.js';
 
+import {
+  SCIENTIFIC_FUNCTIONS,
+  SIGN_TRIGGER_OPS,
+  applyBinaryOp,
+  applyScientific,
+  factorial,
+  getPriority,
+  isDigitOrDot,
+  isLowerCaseLetter,
+  isRightAssociative,
+  precedesImplicitMultiply
+} from './utils.js'
 class Stack implements IStack {
+  private operatorStack: strOrNum[] = [];
+ 
+  readonly scientificArr: scientificArr = SCIENTIFIC_FUNCTIONS;
+
+  resiprocal(str: string): number | null {
+    const res = this.evaluatePostfix(this.postfix(this.tokenGenerator(str)));
+    return res === 0 ? null : 1 / res;
+  }
+
+  tokenGenerator(str: string): strOrNum[] {
+    const tokens: strOrNum[] = [];
+    let idx = 0;
+    let openCount = 0;
+    let closeCount = 0;
+ 
+    while (idx < str.length) {
+      let c = str[idx]
+      let ch = ""
+      if(c) ch = c
+      if (
+        (ch === '+' || ch === '-') &&
+        (idx === 0 || tokens[tokens.length - 1] === '(' || SIGN_TRIGGER_OPS.has(tokens[tokens.length - 1] as string)) &&
+        tokens[tokens.length - 1] !== '!'
+      ) {
+        idx = this.consumeSignedNumber(str, idx, tokens);
+        continue;
+      }
+ 
+      if (isDigitOrDot(ch)) {
+        idx = this.consumeUnsignedNumber(str, idx, tokens);
+        continue;
+      }
+ 
+      if (isLowerCaseLetter(ch)) {
+        const [word, nextIdx] = this.readWord(str, idx);
+        idx = nextIdx;
+        if (this.scientificArr.includes(word as scientificOp)) {
+          idx = this.consumeScientificCall(str, idx, word, tokens);
+        }
+        continue;
+      }
+ 
+      // ── Constants ──────────────────────────────────────────────────────────
+      if (ch === 'π') {
+        if (precedesImplicitMultiply(tokens)) tokens.push('*');
+        tokens.push(Math.PI);
+        idx++;
+        continue;
+      }
+ 
+      if (ch === 'ℯ') {
+        if (precedesImplicitMultiply(tokens)) tokens.push('*');
+        tokens.push(Math.E);
+        idx++;
+        continue;
+      }
+ 
+      // ── Brackets & remaining operators ────────────────────────────────────
+      if (ch === '(') {
+        if (precedesImplicitMultiply(tokens)) tokens.push('*');
+        openCount++;
+        tokens.push(ch);
+        idx++;
+        continue;
+      }
+ 
+      if (ch === ')') {
+        closeCount++;
+        tokens.push(ch);
+        idx++;
+        continue;
+      }
+ 
+      tokens.push(ch);
+      idx++;
+    }
     
-    private stack: strOrNum[]
-    private scientificArr: scientificArr
-    constructor() {
-        this.stack = []    
-        this.scientificArr = ["sin", "cos", "tan", "log", "ln", "sqrt"]
-    }
-
-    private isNumber(ch: string): boolean {
-        return (ch >= "0" && ch <= "9") || ch === "."
-    }
-
-    private isCharacter(ch: string): boolean {
-        return ch >= "a" && ch <= "z"
-    }
-
-    private priority(ch: string): priorityType {
-        if(ch === "+" || ch === "-") return 1
-        else if(ch === "/" || ch === "*" || ch === "%") return 2
-        else if(ch === "^") return 3
-        else if(ch === "!" || ch === "minus") return 4
-        else return -1
-    }
-
-    private scientificOperator(op: string, val: number): number {        
-        switch(op) {
-            case "sin": 
-                return Math.sin(val)
-            case "cos":
-                return Math.cos(val)
-            case "tan":
-                return Math.tan(val)
-            case "log":
-                return Math.log10(val)
-            case "ln":
-                return Math.log(val)
-            case "sqrt":
-                return Math.sqrt(val)
+    if (openCount !== closeCount) throw new Error('Invalid parentheses');
+    return tokens;
+  }
+ 
+  postfix(arr: strOrNum[]): strOrNum[] {
+    const output: strOrNum[] = [];
+    this.operatorStack = [];
+ 
+    for (const token of arr) {
+      if (typeof token === 'number') {
+        output.push(token);
+        continue;
+      }
+ 
+      if (token === '(') {
+        this.operatorStack.push(token);
+        continue;
+      }
+ 
+      if (token === ')') {
+        while (this.operatorStack.length > 0 && this.stackTop() !== '(') {
+          output.push(this.operatorStack.pop()!);
         }
-        return 0
-    }
-
-    private factorial(val: number): number | never {
-        if(val < 0) throw new Error("Can't find the factorial for negative number")
-        if(val === 0) return 1
-        let res = 1
-        for(let i = 1;i<=val;i++) {
-            res *= i
-        }
-        return res
-    }
-
-    private isRightAssociative(ch: string): boolean {
-        return ch === "^"
-    }
-
-    standardOperation(operand: string, op1: number, op2: number) {
-        const map: Record<string, (a: number, b:number) => number> = {
-            "+": (a: number, b: number) => a + b,
-            "-": (a: number, b: number) => a - b,
-            "*": (a: number, b: number) => a * b,
-            "/": (a: number, b: number) => a / b,
-            "^": (a: number, b: number) => Math.pow(b,a),
-            "%": (a: number, b: number) => a % b
-        }
-
-        const fn = map[operand]
-        if(!fn) throw new Error("function undefined")
-        if(operand === "/" && op1 === 0) throw new Error("Can't divide by zero")
-        return fn(op1, op2)
-    }
-
-
-    resiprocal(str: string): number | null {
-        let token = this.tokenGenerator(str)
-        let post = this.postfix(token)
-        let res = this.evaluatePostfix(post)    
-        if(res === 0) return null
-        return 1/res 
-    }
-
-    private peek(str: string, idx: number): string {
-        if(str[idx]) return str[idx]
-        return ""
-    }
-
-    tokenGenerator(str: string): strOrNum[] {        
-        let arrConverter: strOrNum[] = []
-        let idx = 0
-        let open = 0, close = 0;
-        while(idx < str.length) {  
-            let num = ""
-            let topEle = ""
-            let t = <string>arrConverter[arrConverter.length - 1]
-            if(t) topEle = t
-            if(idx<str.length && 
-                ["+", "-"].includes(this.peek(str, idx)) &&
-                 (idx===0 || arrConverter[arrConverter.length - 1] === "(" || ["+", "-", "*", "/", "(", "^", "%"].includes(topEle) ) && 
-                 arrConverter[arrConverter.length - 1] !== "!"){
-                let flag = false
-                let neg = str[idx]==="+" ? 1 : -1
-                idx++
-                while(idx<str.length && !this.isNumber(this.peek(str, idx)) && ["+", "-"].includes(this.peek(str, idx))) {
-                    if(str[idx] === "-") neg *= -1
-                    idx++
-                }
-                while(idx<str.length && this.isNumber(this.peek(str, idx))){
-                    if(str[idx]==="." && flag)throw new Error("Multiple decimal point not allowed")
-                    if(str[idx]==="." && !flag) flag = true
-                    num += str[idx]
-                    idx++;
-                }
-                if(arrConverter.length>0 && (arrConverter[arrConverter.length - 1] === ")" || arrConverter[arrConverter.length - 1] === Math.PI || arrConverter[arrConverter.length - 1] === Math.E )) arrConverter.push("*")
-                if(num==="") arrConverter.push(neg)
-                else arrConverter.push(neg * Number(num))
-                num = ""
-            }
-            if (idx<str.length && this.isNumber(this.peek(str, idx))) {
-                let flag = false 
-                while (idx < str.length && this.isNumber(this.peek(str, idx))) {
-                    if(str[idx]==="." && flag)throw new Error("Multiple decimal point not allowed")
-                    if(str[idx]==="." && !flag) flag = true
-                    num += str[idx];
-                    idx++;
-                }
-                if(num!=="") {
-                    if(arrConverter.length>0 && (arrConverter[arrConverter.length - 1] === ")" || arrConverter[arrConverter.length - 1] === Math.PI || arrConverter[arrConverter.length - 1] === Math.E )) arrConverter.push("*")
-                    arrConverter.push(Number(num));
-                }
-                num = ""
-            }
-            while(idx<str.length && this.isCharacter(this.peek(str, idx))) {
-                num += str[idx]
-                idx++;
-            }
-            if(this.scientificArr.includes(num as scientificOp)) {
-                // console.log(idx);
-                
-                let evl = ""
-                let paran = -1
-                let start = -1
-                let end = -1
-                while(idx<str.length) {
-                    if(str[idx]==="(") {
-                        paran = 1
-                        end = idx
-                        idx++
-                        break
-                    }
-                    idx++
-                }
-                while(idx<str.length) {
-                    if(str[idx] === "(") paran++
-                    if(str[idx] === ")") paran--
-                    if(paran === 0) {
-                        start = idx 
-                        break
-                    }
-                    evl += str[idx]
-                    idx++
-                }
-                // console.log(evl);
-                
-                // while(idx+1<str.length && str[idx+1] !== ")") {
-                //     evl += str[idx+1]
-                //     idx++
-                // }
-                if(paran === 0) {
-                    if(arrConverter.length > 0 && (typeof arrConverter[arrConverter.length - 1] === "number")) arrConverter.push("*")
-                    let number = this.evaluatePostfix(this.postfix(this.tokenGenerator(evl)))
-                    let result = this.scientificOperator(num, number)
-                     arrConverter.push(result)
-                } else {
-                    throw new Error("Invalid parantheses")
-                }
-                num = ""
-                idx++
-            }
-            if(idx<str.length && str[idx] === "π") {
-                if(arrConverter.length > 0 && (typeof arrConverter[arrConverter.length - 1] === "number" || arrConverter[arrConverter.length - 1] === ")")) arrConverter.push("*")
-                arrConverter.push(Math.PI)
-                idx++
-            }
-            if(idx<str.length && str[idx] === "ℯ") {
-                if(arrConverter.length > 0 && (typeof arrConverter[arrConverter.length - 1] === "number" || arrConverter[arrConverter.length - 1] === ")")) arrConverter.push("*")
-                arrConverter.push(Math.E)
-                idx++
-            }
-            if(idx<str.length && !this.isNumber(this.peek(str, idx)) && !this.isCharacter(this.peek(str, idx))) {
-                if(str[idx] === "(") {
-                    if(arrConverter.length > 0 && (typeof arrConverter[arrConverter.length - 1] === "number" || arrConverter[arrConverter.length - 1] === ")")) arrConverter.push("*")
-                    open++
-                } 
-                else if(str[idx] === ")") {
-                    close++
-                }
-                arrConverter.push(this.peek(str, idx))
-                idx++
-            }
-        }
-        if(open != close) throw new Error("Invalid parantheses")
-        return arrConverter
-    }
-
-    postfix(arr: strOrNum[]): strOrNum[] {
-        const post: strOrNum[] = []
-        let idx = 0;
-        this.stack = []
-
-        while(idx < arr.length) {
-            let el = arr[idx]
-            if(typeof arr[idx] === "number" && el != null) post.push(el)
-            else if(arr[idx] === "(" && el != null) this.stack.push(el)
-            else if(arr[idx] === ")") {
-                while(this.stack.length >= 0 && this.stack[this.stack.length - 1] !== "(") {
-                    let top = this.stack.pop()
-                    if(top)
-                        post.push(top)
-                }
-                this.stack.pop()
-            } else {
-                let stackTop = ""
-                let currEle = ""
-                const t = this.stack[this.stack.length - 1];
-                const c = arr[idx]
-                if(t != null && typeof t === "string") stackTop = t
-                if(c !== undefined && typeof c === "string") currEle = c 
-                while(this.stack.length > 0 && stackTop !== "(" && (this.priority(currEle) < this.priority(stackTop) || (this.priority(currEle) === this.priority(stackTop) && !this.isRightAssociative(currEle)))) {
-                    let num = this.stack.pop()
-                    if(num)
-                        post.push(num)
-                }
-                this.stack.push(currEle)
-            } 
-            idx++        
-        }
-        while(this.stack.length > 0) {
-            let top = this.stack.pop()
-            if(top)
-                post.push(top)
-        }
-        return post
+        this.operatorStack.pop(); 
+        continue;
+      }
+ 
+      while (
+        this.operatorStack.length > 0 &&
+        this.stackTop() !== '(' &&
+        (getPriority(token) < getPriority(this.stackTop() as string) ||
+          (getPriority(token) === getPriority(this.stackTop() as string) &&
+            !isRightAssociative(token)))
+      ) {
+        output.push(this.operatorStack.pop()!);
+      }
+      this.operatorStack.push(token);
     }
  
-    evaluatePostfix(arr: strOrNum[]): number {
-        let stack: number[] = []
-        let idx = 0;
-        
-        while(idx < arr.length) {
-            let el = arr[idx]
-            if(el != undefined && typeof el === "number") stack.push(el)
-            else if(arr[idx] === "!") {
-                let num = stack.pop()
-                if(num !== undefined && typeof num === "number") stack.push(this.factorial(num))
-            }
-            else {
-                let op1 = stack.pop()
-                let op2 = stack.pop()
-                let operand = arr[idx]
-
-                if((op1 === undefined || typeof op1 !== "number") || (op2 === undefined || typeof op2 !== "number") || (operand === undefined || typeof operand !== "string")) throw new Error("Insufficient operands for operator");
-                
-                this.standardOperation(operand, op1, op2)
-            }
-            idx++
-        }
-        if(stack[0])
-            return stack[0]
-        return 0
+    while (this.operatorStack.length > 0) {
+      output.push(this.operatorStack.pop()!);
     }
-
-    toggleSign(arr: strOrNum[]): strOrNum[] | string {
-        let paran = -1
-        let start = -1, end = -1
-        let idx = arr.length - 1
-        if(arr.length === 0) return "Can't perform operation";        
-        let last = arr[arr.length - 1]
-        if(typeof last === "number") {
-            arr[arr.length - 1] = -1 * last
-        } else {
-            while(idx>=0) {
-                if(arr[idx] === ")") {
-                    paran = 1
-                    end = idx
-                    idx--
-                    break
-                }
-                idx--
-            }
-            while(idx>=0) {
-                if(arr[idx] === ")") paran++
-                if(arr[idx] === "(") paran--
-                if(paran === 0) {
-                    start = idx 
-                    break
-                }
-                idx--
-            }
-            if(start !== -1) {
-                arr[start] = "-("
-            }
-        }
-        return arr
+ 
+    return output;
+  }
+ 
+  evaluatePostfix(arr: strOrNum[]): number {
+    const stack: number[] = [];
+ 
+    for (const token of arr) {
+      if (typeof token === 'number') {
+        stack.push(token);
+        continue;
+      }
+ 
+      if (token === '!') {
+        const operand = stack.pop();
+        if (operand === undefined) throw new Error("Insufficient operands for '!'");
+        stack.push(factorial(operand));
+        continue;
+      }
+ 
+      const op1 = stack.pop();
+      const op2 = stack.pop();
+      if (op1 === undefined || op2 === undefined)
+        throw new Error(`Insufficient operands for operator "${token}"`);
+ 
+      stack.push(applyBinaryOp(token, op1, op2));
     }
+ 
+    if (stack.length !== 1)
+      throw new Error('Invalid expression: unexpected leftover values');
+    if(stack[0])
+      return stack[0];
+    return 0
+  }
+ 
+  toggleSign(arr: strOrNum[]): strOrNum[] | string {
+    if (arr.length === 0) return "Can't perform operation";
+ 
+    const last = arr[arr.length - 1];
+ 
+    if (typeof last === 'number') {
+      arr[arr.length - 1] = -last;
+      return arr;
+    }
+ 
+    if (last === ')') {
+      const openIdx = this.findMatchingOpenParen(arr);
+      if (openIdx !== -1) arr[openIdx] = '-(';
+    }
+ 
+    return arr;
+  }
 
+
+  private stackTop(): strOrNum {
+    let c = this.operatorStack[this.operatorStack.length - 1]
+    let ch: strOrNum = ""
+    if(c) ch = c 
+    return ch;
+  }
+ 
+  private readWord(str: string, idx: number): [string, number] {
+    let word = '';
+    while (idx < str.length && isLowerCaseLetter(str[idx] as string)) {
+      word += str[idx++];
+    }
+    return [word, idx];
+  }
+ 
+  private consumeSignedNumber(str: string, idx: number, tokens: strOrNum[]): number {
+    let sign = str[idx] === '-' ? -1 : 1;
+    idx++;
+ 
+    // Collapse consecutive signs: "---3" → -3
+    while (idx < str.length && (str[idx] === '+' || str[idx] === '-')) {
+      if (str[idx] === '-') sign *= -1;
+      idx++;
+    }
+ 
+    let numStr = '';
+    let hasDecimal = false;
+    while (idx < str.length && isDigitOrDot(str[idx] as string)) {
+      if (str[idx] === '.') {
+        if (hasDecimal) throw new Error('Multiple decimal points in a number');
+        hasDecimal = true;
+      }
+      numStr += str[idx++];
+    }
+ 
+    if (precedesImplicitMultiply(tokens)) tokens.push('*');
+    tokens.push(numStr === '' ? sign : sign * Number(numStr));
+    return idx;
+  }
+ 
+  private consumeUnsignedNumber(str: string, idx: number, tokens: strOrNum[]): number {
+    let numStr = '';
+    let hasDecimal = false;
+    while (idx < str.length && isDigitOrDot(str[idx] as string)) {
+      if (str[idx] === '.') {
+        if (hasDecimal) throw new Error('Multiple decimal points in a number');
+        hasDecimal = true;
+      }
+      numStr += str[idx++];
+    }
+ 
+    if (numStr) {
+      if (precedesImplicitMultiply(tokens)) tokens.push('*');
+      tokens.push(Number(numStr));
+    }
+    return idx;
+  }
+ 
+  private consumeScientificCall(str: string, idx: number, fnName: string, tokens: strOrNum[]): number {
+    // Advance to the opening parenthesis
+    while (idx < str.length && str[idx] !== '(') idx++;
+    if (idx >= str.length) throw new Error(`Missing '(' after "${fnName}"`);
+ 
+    let depth = 1;
+    idx++; // skip '('
+    let inner = '';
+ 
+    while (idx < str.length && depth > 0) {
+      if (str[idx] === '(') depth++;
+      if (str[idx] === ')') depth--;
+      if (depth > 0) inner += str[idx];
+      idx++;
+    }
+ 
+    if (depth !== 0) throw new Error('Invalid parentheses.');
+ 
+    const argValue = this.evaluatePostfix(this.postfix(this.tokenGenerator(inner)));
+    const result = applyScientific(fnName, argValue);
+ 
+    if (precedesImplicitMultiply(tokens)) tokens.push('*');
+    tokens.push(result);
+ 
+    return idx;
+  }
+ 
+  private findMatchingOpenParen(tokens: strOrNum[]): number {
+    let depth = 0;
+    for (let i = tokens.length - 1; i >= 0; i--) {
+      if (tokens[i] === ')') depth++;
+      if (tokens[i] === '(' || tokens[i] === '-(') depth--;
+      if (depth === 0) return i;
+    }
+    return -1;
+  }
 }
 
-
-export { Stack }
+export { Stack };
