@@ -9,11 +9,11 @@ export type scientificOp = scientificArr[number]
 export type Operator = "+" | "-" | "/" | "*" | "%" | "^" | "!" | "minus" | "(" | ")"
 
 export interface IStack {
-    resiprocal(str: string): number,
+    resiprocal(str: string): number | null,
     tokenGenerator(str: string): strOrNum[]
     postfix(arr: strOrNum[]): strOrNum[]
-    evaluatePostfix(arr: strOrNum[]): [number]
-    toggleSign(arr: strOrNum[]): strOrNum[]
+    evaluatePostfix(arr: strOrNum[]): number
+    toggleSign(arr: strOrNum[]): strOrNum[] | string
 }
 
 export interface IHistory {
