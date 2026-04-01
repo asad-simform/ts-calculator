@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+    <title>Document</title>
+</head>
+<body>
+    <div class="main-container">
+        <div class="container">
+            <h2>Scientific Calculator</h2>
+            <input type="text" value="" readonly>
+            <div class="grid-container">
+                    <!-- row-1 start -->
+                        <button class="grey" data-func="ac">AC</button>
+                        <button class="grey" data-func="del">DEL</button>
+                        <button class="grey" data-func="toggle">+/-</button>
+                        <button class="orange" data-operator="mod">%</button>
+                    <!-- row-1 end -->
+
+                    <!-- row-2 start -->
+                        <button class="dark-grey" data-scientific="sin">sin</button>
+                        <button class="dark-grey" data-scientific="cos">cos</button>
+                        <button class="dark-grey" data-scientific="tan">tan</button>
+                        <button class="orange" data-operator="div">/</button>
+                    <!-- row-2 end -->
+
+                    <!-- row-3 start -->
+                        <button class="dark-grey" data-scientific="sqrt">&radic;</button>
+                        <button class="dark-grey" data-scientific="log">log</button>
+                        <button class="dark-grey" data-scientific="ln">ln</button>
+                        <button class="orange" data-operator="mul">*</button>
+                    <!-- row-3 end -->
+
+                    <!-- row-4 start -->
+                        <button class="dark-grey" data-scientific="π">&pi;</button>
+                        <button class="dark-grey" data-scientific="ℯ">&escr;</button>
+                        <button class="dark-grey" data-scientific="^">x^y</button>
+                        <button class="orange" data-operator="sub">-</button>
+                    <!-- row-4 end -->
+
+                    <!-- row-5 start -->
+                        <button data-number="7">7</button>
+                        <button data-number="8">8</button>
+                        <button data-number="9">9</button>
+                        <button class="orange" data-operator="add">+</button>
+                    <!-- row-5 end -->
+
+                    <!-- row-6 start -->
+                        <button data-number="4">4</button>
+                        <button data-number="5">5</button>
+                        <button data-number="6">6</button>
+                        <button class="grey" data-func="res">1/x</button>
+                    <!-- row-6 end -->
+
+                    <!-- row-7 start -->
+                        <button data-number="1">1</button>
+                        <button data-number="2">2</button>
+                        <button data-number="3">3</button>
+                        <button class="grey" data-func="!">n!</button>
+                    <!-- row-7 end -->
+
+                    <!-- row-8 start -->
+                        <button class="large" data-number="0">0</button>
+                        <button data-scientific=".">.</button>
+                    <!-- row-8 end -->
+
+                    <!-- row-9 start -->
+                        <button class="large green" data-equal="=">=</button>
+                        <button class="orange" data-bracket="(">&#40</button>
+                        <button class="orange" data-bracket=")">&#41</button>
+                    <!-- row-9 end -->
+            </div>
+        </div>
+        <div class="history">
+            <div class="history-title">
+                <p>Calculator history</p>
+                <button class="clear-his">Clear All</button>
+            </div>
+            <div class="cal-history"></div>
+        </div>
+    </div>
+    <script src="../dist/app.js"  type="module"></script>
+</body>
+</html>
